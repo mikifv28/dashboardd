@@ -1,0 +1,33 @@
+name: Convertir Excel a JSON
+
+on:
+  push:
+    paths:
+      - 'datos/*.xlsx'
+  workflow_dispatch: # Permite ejecutarlo manualmente
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar librerías
+        run: pip install pandas openpyxl
+
+      - name: Ejecutar script de conversión
+        run: python scripts/convert_excel_to_json.py
+
+      - name: Guardar cambios
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add data/datos_consolidados.json
+          git commit -m "Actualización automática de datos" || echo "Sin cambios"
+          git push
