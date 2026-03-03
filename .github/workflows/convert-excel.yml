@@ -3,7 +3,7 @@ name: Convertir Excel a JSON
 on:
   push:
     paths:
-      - 'datos/*.xlsx'
+      - 'data/*.xlsx'
   workflow_dispatch: # Permite ejecutarlo manualmente
 
 jobs:
