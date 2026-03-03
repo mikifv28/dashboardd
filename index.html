@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Carteras de Inversión</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #F0F3F7;
+    --bg2:     #E8ECF2;
+    --bg3:     #DDE2EA;
+    --card:    #FFFFFF;
+    --card2:   #F7F9FC;
+    --border:  #D1D9E6;
+    --accent:  #1F3B73;
+    --accent2: #3D5A8A;
+    --gold:    #d97706;
+    --green:   #059669;
+    --red:     #dc2626;
+    --orange:  #ea580c;
+    --text:    #1F3B73;
+    --text2:   #3D5A8A;
+    --text3:   #6B80A8;
+    --shadow:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+    --font-display: 'DM Serif Display', serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; min-height: 100vh; }
+
+  .header { background: #FFFFFF; border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow); }
+  .logo { font-family: var(--font-display); font-size: 22px; color: var(--text); letter-spacing: -0.5px; }
+  .logo span { color: #1F3B73; }
+  .header-date { color: var(--text3); font-size: 12px; font-weight: 300; }
+  
+  .loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+  .loading-spinner { width: 50px; height: 50px; border: 4px solid var(--bg3); border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  .loading-text { margin-top: 20px; color: var(--text3); font-size: 14px; }
+  .error-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; padding: 20px; text-align: center; }
+  .error-screen.show { display: flex; }
+  .error-icon { font-size: 64px; color: var(--red); margin-bottom: 20px; }
+  .error-title { font-size: 24px; color: var(--text); margin-bottom: 10px; }
+  .error-message { color: var(--text3); margin-bottom: 20px; max-width: 600px; }
+  
+  .upload-section { background: #FFFFFF; border: 2px dashed var(--border); border-radius: 12px; padding: 40px; text-align: center; margin: 20px; display: none; }
+  .upload-section.show { display: block; }
+  .upload-icon { font-size: 48px; color: var(--accent); margin-bottom: 20px; }
+  .upload-button { background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; cursor: pointer; margin: 10px; }
+  .upload-button:hover { background: var(--accent2); }
+  
+  #main-content { display: none; }
+  #main-content.show { display: block; }
+
+  .selectors-bar { background: #FFFFFF; border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; box-shadow: var(--shadow); }
+  .sel-group { display: flex; flex-direction: column; gap: 4px; }
+  .sel-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); }
+  select { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 32px 8px 12px; font-family: var(--font-body); font-size: 13px; cursor: pointer; min-width: 200px; box-shadow: var(--shadow); }
+  
+  .main { padding: 24px 32px; display: flex; flex-direction: column; gap: 24px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; box-shadow: var(--shadow); }
+  .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .kpi-card.blue::before  { background: linear-gradient(90deg, #1F3B73, #3D5A8A); }
+  .kpi-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); margin-bottom: 8px; }
+  .kpi-value { font-family: var(--font-display); font-size: 28px; color: var(--text); line-height: 1; margin-bottom: 4px; }
+  
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+  .panel-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--card); }
+  .panel-title { font-family: var(--font-display); font-size: 16px; color: var(--text); }
+  .panel-body { padding: 20px; }
+  .chart-wrap { position: relative; }
+  .chart-wrap canvas { max-height: 220px; }
+</style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Cargando datos del dashboard...</div>
+</div>
+
+<!-- Error Screen -->
+<div class="error-screen" id="errorScreen">
+  <div class="error-icon">⚠️</div>
+  <div class="error-title">Error al Cargar Datos</div>
+  <div class="error-message" id="errorMessage">
+    No se pudieron cargar los archivos de datos. Por favor, asegúrate de que los archivos Excel estén en la carpeta 'data/'.
+  </div>
+  <button class="upload-button" onclick="location.reload()">Reintentar</button>
+</div>
+
+<!-- Upload Section (para uso local) -->
+<div class="upload-section" id="uploadSection">
+  <div class="upload-icon">📁</div>
+  <h2>Sube tus Archivos Excel</h2>
+  <p style="margin: 20px 0; color: var(--text3);">Arrastra aquí tus archivos Excel o haz clic para seleccionarlos</p>
+  <input type="file" id="fileInput" multiple accept=".xlsx,.xls" style="display:none">
+  <button class="upload-button" onclick="document.getElementById('fileInput').click()">Seleccionar Archivos</button>
+</div>
+
+<div id="main-content">
+  <div class="header">
+    <div class="logo">Dashboard <span>Carteras</span></div>
+    <div class="header-date" id="currentDate"></div>
+  </div>
+
+  <div class="selectors-bar">
+    <div class="sel-group">
+      <div class="sel-label">Cliente</div>
+      <select id="clienteSelector"></select>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="kpi-grid">
+      <div class="kpi-card blue">
+        <div class="kpi-label">Patrimonio Total</div>
+        <div class="kpi-value" id="kpiPatrimonio">-</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Rentabilidad Esperada</div>
+        <div class="kpi-value" id="kpiRent">-</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Volatilidad</div>
+        <div class="kpi-value" id="kpiVol">-</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">Sharpe Ratio</div>
+        <div class="kpi-value" id="kpiSharpe">-</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-label">VaR 95%</div>
+        <div class="kpi-value" id="kpiVar">-</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Distribución por Categoría</div>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap">
+          <canvas id="chartCategoria"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Distribución por Divisa</div>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap">
+          <canvas id="chartDivisa"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Variables globales
+let datosGlobales = {};
+let charts = {};
+
+// Formateo
+const fmt = (n, dec=2) => n != null ? n.toLocaleString('es-ES', {minimumFractionDigits:dec, maximumFractionDigits:dec}) : '-';
+const fmtEur = (n) => n != null ? '€ ' + n.toLocaleString('es-ES', {minimumFractionDigits:0, maximumFractionDigits:0}) : '-';
+const fmtPct = (n) => n != null ? fmt(n) + '%' : '-';
+
+// Cargar datos desde archivos JSON (generados por GitHub Actions)
+async function cargarDatos() {
+  try {
+    // Intentar cargar desde el JSON generado automáticamente
+    const response = await fetch('data/datos_consolidados.json');
+    if (!response.ok) throw new Error('No se pudo cargar datos_consolidados.json');
+    
+    const datos = await response.json();
+    datosGlobales = datos;
+    
+    inicializarDashboard();
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('main-content').classList.add('show');
+    
+  } catch (error) {
+    console.error('Error cargando datos:', error);
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('errorScreen').classList.add('show');
+    document.getElementById('errorMessage').textContent = 
+      'No se pudieron cargar los datos. Asegúrate de haber subido los archivos Excel a la carpeta "data/" en GitHub.';
+  }
+}
+
+function inicializarDashboard() {
+  // Configurar fecha
+  document.getElementById('currentDate').textContent = new Date().toLocaleDateString('es-ES', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+  
+  // Llenar selector de clientes
+  const selector = document.getElementById('clienteSelector');
+  selector.innerHTML = '';
+  
+  if (datosGlobales.clientes && datosGlobales.clientes.length > 0) {
+    datosGlobales.clientes.forEach((cliente, idx) => {
+      const option = document.createElement('option');
+      option.value = idx;
+      option.textContent = `${cliente.nombre} (${cliente.codigo})`;
+      selector.appendChild(option);
+    });
+    
+    selector.addEventListener('change', actualizarCliente);
+    actualizarCliente();
+  }
+}
+
+function actualizarCliente() {
+  const idx = document.getElementById('clienteSelector').value;
+  const cliente = datosGlobales.clientes[idx];
+  
+  if (!cliente) return;
+  
+  // Buscar datos del cliente
+  const divisa = datosGlobales.divisas?.find(d => d.codigo === cliente.codigo) || {};
+  const categoria = datosGlobales.categorias?.find(c => c.codigo === cliente.codigo) || {};
+  
+  // Actualizar KPIs
+  document.getElementById('kpiPatrimonio').textContent = fmtEur(divisa.patrimonio || categoria.patrimonio || 0);
+  document.getElementById('kpiRent').textContent = fmtPct(8.5); // Placeholder
+  document.getElementById('kpiVol').textContent = fmtPct(12.3); // Placeholder
+  document.getElementById('kpiSharpe').textContent = fmt(0.42, 2); // Placeholder
+  document.getElementById('kpiVar').textContent = fmtPct(18.5); // Placeholder
+  
+  // Actualizar gráficos
+  actualizarGraficoCategoria(categoria);
+  actualizarGraficoDivisa(divisa);
+}
+
+function actualizarGraficoCategoria(data) {
+  const ctx = document.getElementById('chartCategoria');
+  if (charts.categoria) charts.categoria.destroy();
+  
+  charts.categoria = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['RF', 'RV', 'MM', 'Alternativos'],
+      datasets: [{
+        data: [data.rf || 0, data.rv || 0, data.mm || 0, data.alternativos || 0],
+        backgroundColor: ['#3D5A8A', '#d97706', '#059669', '#dc2626']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+}
+
+function actualizarGraficoDivisa(data) {
+  const ctx = document.getElementById('chartDivisa');
+  if (charts.divisa) charts.divisa.destroy();
+  
+  charts.divisa = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['EUR', 'USD', 'Otros'],
+      datasets: [{
+        label: 'Exposición por Divisa (%)',
+        data: [data.euro || 0, data.dolar || 0, data.otros || 0],
+        backgroundColor: '#1F3B73'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+// Iniciar cuando la página carga
+document.addEventListener('DOMContentLoaded', cargarDatos);
+</script>
+
+</body>
+</html>
