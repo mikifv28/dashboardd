@@ -3,7 +3,7 @@ import json
 import os
 
 def cargar_excel():
-    ruta_data = 'datos/'
+    ruta_data = 'Datos/'
     archivos = {
         'clientes': 'Lista_Clientes.xlsx',
         'divisa': 'Divisa.xlsx',
@@ -24,7 +24,7 @@ def cargar_excel():
             print(f"Advertencia: No se encontró {nombre}")
 
     # Guarda el resultado en un JSON
-    with open('datos/datos_consolidados.json', 'w', encoding='utf-8') as f:
+    with open('Datos/datos_consolidados.json', 'w', encoding='utf-8') as f:
         json.dump(resultado, f, indent=4, ensure_ascii=False)
     
     print("¡Datos convertidos con éxito!")
